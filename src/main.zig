@@ -23,7 +23,7 @@ pub fn main() !void {
     eventLoop.on("hello", toUpper)
         .dispatch(Event{ .key = "hello", .data = "How are You Doing?", .asynchronous = false });
     // eventLoop.on("hello", toLower)
-    // .dispatch(Event{ .key = "hello", .data = "How are You Doing?", .asynchronous = false });
+    // .dispatch(Event{ .key = "hello", .data = "How are ASYNC?", .asynchronous = true });
     while (true) {
         try eventLoop.run();
     }
@@ -124,8 +124,13 @@ const EventLoop = struct {
 
     fn pushEvent(self: *EventLoop, event: Event) void {
         var task = self.handlers.get(event.key).?;
-        var result = task(event.data);
-        var eventResult = EventResult{ .key = event.key, .result = result };
+        var result = self.allocator.create([]const u8) catch @panic("ERror allocating");
+        result.* = task(event.data);
+        // var result = task(event.data);
+        // var result: [14]u8 = undefined;
+        std.debug.print("RESULT: {s}, size {} string {s} size {}\n", .{ result.*, result.len, event.data, event.data.len });
+        // @memcpy(result[0..14], task(event.data));
+        var eventResult = EventResult{ .key = event.key, .result = result.* };
 
         var node = self.allocator.create(std.atomic.Queue(EventResult).Node) catch @panic("Error storing node");
         node.*.data = eventResult;
