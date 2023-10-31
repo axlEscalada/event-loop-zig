@@ -59,11 +59,7 @@ fn toLower(str: []const u8) []const u8 {
 fn toUpper(str: []const u8) []const u8 {
     std.debug.print("UPPER: {s}\n", .{str});
     var buf: [1024]u8 = undefined;
-    _ = buf;
-    // return std.ascii.upperString(&buf, str);
-    return "AWENO";
-    // std.debug.print("POINTER: {any}, VALUE: {s}\n", .{ buf, &buf });
-    // return buf;
+    return std.ascii.upperString(&buf, str);
 }
 
 const Event = struct {
@@ -84,8 +80,8 @@ const EventLoop = struct {
     }
 
     fn dispatch(self: *EventLoop, event: Event) void {
-        var node = self.allocator.create(std.atomic.Queue(Event).Node);
-        node.*.data = event;
+        var node = self.allocator.create(std.atomic.Queue(Event).Node) catch @panic("Error storing node");
+        node.data = event;
         self.events.put(node);
     }
 
@@ -119,10 +115,10 @@ const EventLoop = struct {
 
     fn processSync(self: *EventLoop, event: Event) void {
         var task = self.handlers.get(event.key).?;
-        var result = task(event.data);
-        // var result = @call(.never_tail, task, .{event.data});
-        std.debug.print("DATA: {s}, RESULTADO: {s}\n", .{ event.data, result });
-        var eventResult = EventResult{ .key = event.key, .result = result };
+        var result: [1024]u8 = undefined;
+        @memcpy(result[0..event.data.len], task(event.data));
+
+        var eventResult = EventResult{ .key = event.key, .result = &result };
         self.produceOutput(eventResult);
     }
 
@@ -131,7 +127,7 @@ const EventLoop = struct {
         var result = task(event.data);
         var eventResult = EventResult{ .key = event.key, .result = result };
 
-        var node = try self.allocator.create(std.atomic.Queue(EventResult).Node);
+        var node = self.allocator.create(std.atomic.Queue(EventResult).Node) catch @panic("Error storing node");
         node.*.data = eventResult;
         self.processedEvents.put(node);
     }
