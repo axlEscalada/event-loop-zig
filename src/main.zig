@@ -20,8 +20,10 @@ pub fn main() !void {
     // }
     var eventLoop = EventLoop.init(allocator);
 
-    eventLoop.on("hello", toLower)
+    eventLoop.on("hello", toUpper)
         .dispatch(Event{ .key = "hello", .data = "How are You Doing?", .asynchronous = false });
+    // eventLoop.on("hello", toLower)
+    // .dispatch(Event{ .key = "hello", .data = "How are You Doing?", .asynchronous = false });
     while (true) {
         try eventLoop.run();
     }
@@ -48,13 +50,20 @@ const Func = struct {
 };
 
 fn toLower(str: []const u8) []const u8 {
+    std.debug.print("LOWE: {s}\n", .{str});
     var buf: [1024]u8 = undefined;
-    return std.ascii.lowerString(&buf, str);
+    _ = std.ascii.lowerString(&buf, str);
+    return &buf;
 }
 
 fn toUpper(str: []const u8) []const u8 {
+    std.debug.print("UPPER: {s}\n", .{str});
     var buf: [1024]u8 = undefined;
-    return std.ascii.upperString(&buf, str);
+    _ = buf;
+    // return std.ascii.upperString(&buf, str);
+    return "AWENO";
+    // std.debug.print("POINTER: {any}, VALUE: {s}\n", .{ buf, &buf });
+    // return buf;
 }
 
 const Event = struct {
@@ -64,24 +73,25 @@ const Event = struct {
 };
 
 const EventLoop = struct {
+    allocator: Allocator,
     events: std.atomic.Queue(Event),
     processedEvents: std.atomic.Queue(EventResult),
     handlers: std.StringHashMap(*const fn ([]const u8) []const u8),
 
-    fn on(self: *EventLoop, key: []const u8, handler: *const fn ([]const u8) []const u8) *EventLoop {
+    fn on(self: *EventLoop, key: []const u8, comptime handler: *const fn ([]const u8) []const u8) *EventLoop {
         self.handlers.put(key, handler) catch @panic("Error storing handler");
         return self;
     }
 
     fn dispatch(self: *EventLoop, event: Event) void {
-        var node = std.atomic.Queue(Event).Node{ .data = event };
-        self.events.put(&node);
+        var node = self.allocator.create(std.atomic.Queue(Event).Node);
+        node.*.data = event;
+        self.events.put(node);
     }
 
     fn run(self: *EventLoop) !void {
-        var dequedEvent = self.events.tail;
+        var dequedEvent = self.events.get();
         if (dequedEvent) |node| {
-            _ = self.events.remove(node);
             var event = node.data;
             std.debug.print("Received event: {s}\n", .{event.key});
 
@@ -110,6 +120,8 @@ const EventLoop = struct {
     fn processSync(self: *EventLoop, event: Event) void {
         var task = self.handlers.get(event.key).?;
         var result = task(event.data);
+        // var result = @call(.never_tail, task, .{event.data});
+        std.debug.print("DATA: {s}, RESULTADO: {s}\n", .{ event.data, result });
         var eventResult = EventResult{ .key = event.key, .result = result };
         self.produceOutput(eventResult);
     }
@@ -119,8 +131,9 @@ const EventLoop = struct {
         var result = task(event.data);
         var eventResult = EventResult{ .key = event.key, .result = result };
 
-        var node = std.atomic.Queue(EventResult).Node{ .data = eventResult };
-        self.processedEvents.put(&node);
+        var node = try self.allocator.create(std.atomic.Queue(EventResult).Node);
+        node.*.data = eventResult;
+        self.processedEvents.put(node);
     }
 
     fn produceOutput(self: *EventLoop, eventResult: EventResult) void {
@@ -130,6 +143,7 @@ const EventLoop = struct {
 
     fn init(allocator: Allocator) EventLoop {
         return EventLoop{
+            .allocator = allocator,
             .events = std.atomic.Queue(Event).init(),
             .handlers = std.StringHashMap(*const fn ([]const u8) []const u8).init(allocator),
             .processedEvents = std.atomic.Queue(EventResult).init(),
