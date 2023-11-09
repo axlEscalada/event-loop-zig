@@ -5,7 +5,6 @@ pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
-    // var s = allocator.create(Func);
     // var task = Func.init(allocator, &toUpper, "holi");
     // defer allocator.destroy(task);
     // var result = task.*.run();
