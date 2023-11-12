@@ -5,24 +5,16 @@ pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
-    // var task = Func.init(allocator, &toUpper, "holi");
-    // defer allocator.destroy(task);
-    // var result = task.*.run();
-    // std.debug.print("Result of task: {s}\n", .{result});
-    // var as = std.StringHashMap(*Func).init(allocator);
-    // defer as.deinit();
-    // _ = try as.put("first", task);
-    // var v = as.get("first");
-    // if (v) |function| {
-    //     var rs = function.*.run();
-    //     std.debug.print("Result from hashmap: {s}\n", .{rs});
-    // }
     var eventLoop = EventLoop.init(allocator);
 
-    eventLoop.on("hello", toUpper)
-        .dispatch(Event{ .key = "hello", .data = "How are You Doing?", .asynchronous = false });
-    // eventLoop.on("hello", toLower)
-    // .dispatch(Event{ .key = "hello", .data = "How are ASYNC?", .asynchronous = true });
+    eventLoop.on("hello 1", toLower)
+        .dispatch(Event{ .key = "hello 1", .data = "How are ASYNC?", .asynchronous = true });
+    eventLoop.on("hello 2", toLower)
+        .dispatch(Event{ .key = "hello 2", .data = "How are You Doing?", .asynchronous = false });
+    eventLoop.on("hello 3", toUpper)
+        .dispatch(Event{ .key = "hello 3", .data = "How are u doing ASYNC?", .asynchronous = true });
+    eventLoop.on("hello 4", toUpper)
+        .dispatch(Event{ .key = "hello 4", .data = "How are You Doing?", .asynchronous = false });
     while (true) {
         try eventLoop.run();
     }
@@ -49,7 +41,7 @@ const Func = struct {
 };
 
 fn toLower(str: []const u8) []const u8 {
-    std.debug.print("LOWE: {s}\n", .{str});
+    std.debug.print("LOWER: {s}\n", .{str});
     var buf: [1024]u8 = undefined;
     _ = std.ascii.lowerString(&buf, str);
     return &buf;
@@ -115,7 +107,9 @@ const EventLoop = struct {
     fn processSync(self: *EventLoop, event: Event) void {
         var task = self.handlers.get(event.key).?;
         var result: [1024]u8 = undefined;
-        @memcpy(result[0..event.data.len], task(event.data));
+        var res = task(event.data);
+
+        @memcpy(result[0..res.len], res);
 
         var eventResult = EventResult{ .key = event.key, .result = &result };
         self.produceOutput(eventResult);
@@ -123,13 +117,11 @@ const EventLoop = struct {
 
     fn pushEvent(self: *EventLoop, event: Event) void {
         var task = self.handlers.get(event.key).?;
-        var result = self.allocator.create([]const u8) catch @panic("ERror allocating");
-        result.* = task(event.data);
-        // var result = task(event.data);
-        // var result: [14]u8 = undefined;
-        std.debug.print("RESULT: {s}, size {} string {s} size {}\n", .{ result.*, result.len, event.data, event.data.len });
-        // @memcpy(result[0..14], task(event.data));
-        var eventResult = EventResult{ .key = event.key, .result = result.* };
+        var result: [1024]u8 = undefined;
+        var res = task(event.data);
+
+        @memcpy(result[0..res.len], res);
+        var eventResult = EventResult{ .key = event.key, .result = &result };
 
         var node = self.allocator.create(std.atomic.Queue(EventResult).Node) catch @panic("Error storing node");
         node.*.data = eventResult;
@@ -155,10 +147,3 @@ const EventResult = struct {
     key: []const u8,
     result: []const u8,
 };
-
-test "simple test" {
-    // var list = std.ArrayList(i32).init(std.testing.allocator);
-    // defer list.deinit(); // try commenting this out and see if zig detects the memory leak!
-    // try list.append(42);
-    // try std.testing.expectEqual(@as(i32, 42), list.pop());
-}
