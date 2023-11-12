@@ -41,14 +41,12 @@ const Func = struct {
 };
 
 fn toLower(str: []const u8) []const u8 {
-    std.debug.print("LOWER: {s}\n", .{str});
     var buf: [1024]u8 = undefined;
     _ = std.ascii.lowerString(&buf, str);
     return &buf;
 }
 
 fn toUpper(str: []const u8) []const u8 {
-    std.debug.print("UPPER: {s}\n", .{str});
     var buf: [1024]u8 = undefined;
     return std.ascii.upperString(&buf, str);
 }
@@ -88,9 +86,9 @@ const EventLoop = struct {
                 if (event.asynchronous) {
                     try self.processAsync(event);
                 } else self.processSync(event);
-                const endTime = timer.read();
+                const endTime = @as(f64, @floatFromInt(timer.lap())) / @as(f64, @floatFromInt(std.time.ns_per_ms));
 
-                std.debug.print("Event loop was blocked for {any} ms due to this operation\n", .{endTime});
+                std.debug.print("Event loop `{s}` was blocked for {d:3} ms due to this operation\n", .{ event.key, endTime });
             } else std.debug.print("No handler found for {s}\n", .{event.key});
         }
 
@@ -108,7 +106,6 @@ const EventLoop = struct {
         var task = self.handlers.get(event.key).?;
         var result: [1024]u8 = undefined;
         var res = task(event.data);
-
         @memcpy(result[0..res.len], res);
 
         var eventResult = EventResult{ .key = event.key, .result = &result };
@@ -116,6 +113,8 @@ const EventLoop = struct {
     }
 
     fn pushEvent(self: *EventLoop, event: Event) void {
+        const sleepTime = 5000 * std.time.ns_per_ms;
+        std.time.sleep(sleepTime);
         var task = self.handlers.get(event.key).?;
         var result: [1024]u8 = undefined;
         var res = task(event.data);
