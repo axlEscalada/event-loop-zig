@@ -30,7 +30,7 @@ const Func = struct {
         return function(context);
     }
 
-    pub fn init(allocator: Allocator, comptime Callback: *const fn ([]const u8) []const u8, ctx: []const u8) *Func {
+    pub fn init(allocator: Allocator, comptime Callback: *const (fn ([]const u8) []const u8), ctx: []const u8) *Func {
         var function = allocator.create(Func) catch @panic("can't allocate task");
         function.* = Func{
             .context = ctx,
@@ -61,7 +61,7 @@ const EventLoop = struct {
     allocator: Allocator,
     events: std.atomic.Queue(Event),
     processedEvents: std.atomic.Queue(EventResult),
-    handlers: std.StringHashMap(*const fn ([]const u8) []const u8),
+    handlers: std.StringHashMap(*const (fn ([]const u8) []const u8)),
 
     fn on(self: *EventLoop, key: []const u8, comptime handler: *const fn ([]const u8) []const u8) *EventLoop {
         self.handlers.put(key, handler) catch @panic("Error storing handler");
@@ -136,7 +136,7 @@ const EventLoop = struct {
         return EventLoop{
             .allocator = allocator,
             .events = std.atomic.Queue(Event).init(),
-            .handlers = std.StringHashMap(*const fn ([]const u8) []const u8).init(allocator),
+            .handlers = std.StringHashMap(*const (fn ([]const u8) []const u8)).init(allocator),
             .processedEvents = std.atomic.Queue(EventResult).init(),
         };
     }
