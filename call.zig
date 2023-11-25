@@ -5,9 +5,9 @@ pub fn main() void {
     const ctx2 = Ctx{ .hello = "hi" };
     const greet: *anyopaque = @constCast(&ctx);
     const greethi: *anyopaque = @constCast(&ctx2);
-    const G1 = @typeInfo(@TypeOf(asd));
+    // const G1 = @typeInfo(@TypeOf(asd));
     // try expect(G1.Fn.params.len == 1);
-    std.debug.print("SFD: {}", .{G1.Fn.return_type.?});
+    // std.debug.print("SFD: {}", .{G1.Fn.return_type.?});
     const task = Task.init(
         Function.init(&asd),
         greet,
@@ -16,7 +16,7 @@ pub fn main() void {
     );
     task.run();
     const tk = Task.init(
-        Function.init(&asd),
+        Function.init(&dsa),
         greethi,
         Function.init(&cbk),
         Function.init(&errorCallb),
@@ -28,6 +28,11 @@ fn asd(ctx: Ctx) ![]const u8 {
     if (std.mem.eql(u8, ctx.hello, "holi")) {
         return CustomError.AccesDenied;
     }
+    std.debug.print("S: {s}\n", .{ctx.hello});
+    return "chauchi";
+}
+
+fn dsa(ctx: Ctx) []const u8 {
     std.debug.print("S: {s}\n", .{ctx.hello});
     return "chauchi";
 }
@@ -76,10 +81,18 @@ const Task = struct {
         const tp = @TypeOf(function.*);
         const args = @typeInfo(tp).Fn.params[0].type.?;
         var params = @as(*args, @ptrCast(@alignCast(self.ctx)));
-        var r = function(params.*) catch |e| {
-            const errFn = @as(self.cbackErrorType, @ptrCast(@alignCast(self.cbackError)));
-            errFn(e);
-            return;
+
+        //TODO void/no return case
+        var r = switch (@typeInfo(@typeInfo(tp).Fn.return_type.?)) {
+            .ErrorUnion => blk: {
+                var result = function(params.*) catch |e| {
+                    const errFn = @as(self.cbackErrorType, @ptrCast(@alignCast(self.cbackError)));
+                    errFn(e);
+                    return;
+                };
+                break :blk result;
+            },
+            else => function(params.*),
         };
         const callbackFunc = @as(self.callbackType, @ptrCast(@alignCast(self.callback)));
         callbackFunc(r);
