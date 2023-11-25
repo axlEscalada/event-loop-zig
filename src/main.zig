@@ -7,6 +7,7 @@ pub fn main() !void {
     const allocator = gpa.allocator();
     var eventLoop = EventLoop.init(allocator);
 
+    // <<<<<<< Updated upstream
     eventLoop.on("hello 1", toLower)
         .dispatch(Event{ .key = "hello 1", .data = "How are ASYNC?", .asynchronous = true });
     eventLoop.on("hello 2", toLower)
@@ -15,6 +16,12 @@ pub fn main() !void {
         .dispatch(Event{ .key = "hello 3", .data = "How are u doing ASYNC?", .asynchronous = true });
     eventLoop.on("hello 4", toUpper)
         .dispatch(Event{ .key = "hello 4", .data = "How are You Doing?", .asynchronous = false });
+    // =======
+    //     eventLoop.on("hello", toUpper)
+    //         .dispatch(Event{ .key = "hello", .data = "This is a SYNC task", .asynchronous = false });
+    //     eventLoop.on("hello", toLower)
+    //         .dispatch(Event{ .key = "hello", .data = "This is an ASYNC task", .asynchronous = true });
+    // >>>>>>> Stashed changes
     while (true) {
         try eventLoop.run();
     }
@@ -41,6 +48,10 @@ const Func = struct {
 };
 
 fn toLower(str: []const u8) []const u8 {
+    // <<<<<<< Updated upstream
+    // =======
+    std.debug.print("LOWER: {s}\n", .{str});
+    // >>>>>>> Stashed changes
     var buf: [1024]u8 = undefined;
     _ = std.ascii.lowerString(&buf, str);
     return &buf;
@@ -105,14 +116,19 @@ const EventLoop = struct {
     fn processSync(self: *EventLoop, event: Event) void {
         var task = self.handlers.get(event.key).?;
         var result: [1024]u8 = undefined;
+        // <<<<<<< Updated upstream
         var res = task(event.data);
         @memcpy(result[0..res.len], res);
+        // =======
+        //         @memcpy(result[0..], task(event.data));
+        // >>>>>>> Stashed changes
 
         var eventResult = EventResult{ .key = event.key, .result = &result };
         self.produceOutput(eventResult);
     }
 
     fn pushEvent(self: *EventLoop, event: Event) void {
+        // <<<<<<< Updated upstream
         const sleepTime = 5000 * std.time.ns_per_ms;
         std.time.sleep(sleepTime);
         var task = self.handlers.get(event.key).?;
@@ -120,6 +136,21 @@ const EventLoop = struct {
         var res = task(event.data);
 
         @memcpy(result[0..res.len], res);
+        // =======
+        //         // std.time.sleep(3 * std.time.ns_per_us / 2);
+        //         var task = self.handlers.get(event.key).?;
+        //         // var eventResult = self.allocator.create(EventResult) catch @panic("Error allocating even result");
+        //         // var result = self.allocator.create([]const u8) catch @panic("ERror allocating");
+        //         var result: [1024]u8 = undefined;
+        //         @memcpy(result[0..], task(event.data));
+        //         std.debug.print("RESULT {s}\n", .{result});
+
+        //         // std.debug.print("RESULT: {s}\n", .{eventResult.*.result});
+        //         // var result = task(event.data);
+        //         // var result: [14]u8 = undefined;
+        //         // std.debug.print("RESULT: {s}, size {} string {s} size {}\n", .{ result.*, result.len, event.data, event.data.len });
+        //         // @memcpy(result[0..14], task(event.data));
+        // >>>>>>> Stashed changes
         var eventResult = EventResult{ .key = event.key, .result = &result };
 
         var node = self.allocator.create(std.atomic.Queue(EventResult).Node) catch @panic("Error storing node");

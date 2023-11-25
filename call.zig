@@ -22,7 +22,7 @@ const Task = struct {
     funcType: type,
 
     fn run(comptime self: *const Task) void {
-        const function = @as(self.funcType, @ptrCast(self.func));
+        const function = @as(self.funcType, @ptrCast(@alignCast(self.func)));
         // const tp = @TypeOf(function.*);
         // const typeInfo = @typeInfo(tp);
         // std.debug.print("Type {} args {}\n", .{ tp, typeInfo.Fn.args[0] });
