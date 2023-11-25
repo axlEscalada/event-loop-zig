@@ -1,36 +1,25 @@
 const std = @import("std");
 
 pub fn main() void {
-    const func: *anyopaque = @constCast(&asd);
-    const callbackFunction: *anyopaque = @constCast(&cbk);
     const ctx = Ctx{ .hello = "holi" };
     const ctx2 = Ctx{ .hello = "hi" };
     const greet: *anyopaque = @constCast(&ctx);
     const greethi: *anyopaque = @constCast(&ctx2);
-    const ty = @TypeOf(&asd);
-    const cty = @TypeOf(&cbk);
-    // const fun = Function{ .func = struct {
-    //     f: *const fn (Ctx) []const u8 = &asd,
-    // } };
-    // const fun = Function{ .func = asd };
+    const G1 = @typeInfo(@TypeOf(asd));
+    // try expect(G1.Fn.params.len == 1);
+    std.debug.print("SFD: {}", .{G1.Fn.return_type.?});
     const task = Task.init(
-        func,
-        ty,
+        Function.init(&asd),
         greet,
-        callbackFunction,
-        cty,
-        @as(*anyopaque, @constCast(&errorCallb)),
-        @TypeOf(&errorCallb),
+        Function.init(&cbk),
+        Function.init(&errorCallb),
     );
     task.run();
     const tk = Task.init(
-        func,
-        ty,
+        Function.init(&asd),
         greethi,
-        callbackFunction,
-        cty,
-        @as(*anyopaque, @constCast(&errorCallb)),
-        @TypeOf(&errorCallb),
+        Function.init(&cbk),
+        Function.init(&errorCallb),
     );
     tk.run();
 }
@@ -60,7 +49,17 @@ const Ctx = struct {
 };
 
 const Function = struct {
-    func: type,
+    func: *anyopaque,
+    funcType: type,
+
+    fn init(comptime ptr: anytype) Function {
+        const T = @TypeOf(ptr);
+        const func: *anyopaque = @constCast(ptr);
+        return .{
+            .func = func,
+            .funcType = T,
+        };
+    }
 };
 
 const Task = struct {
@@ -82,21 +81,19 @@ const Task = struct {
             errFn(e);
             return;
         };
-        // std.debug.print("Result: {}\n", .{@TypeOf(r)});
         const callbackFunc = @as(self.callbackType, @ptrCast(@alignCast(self.callback)));
         callbackFunc(r);
     }
 
-    fn init(comptime func: *anyopaque, comptime funcType: anytype, comptime ctx: *anyopaque, comptime callback: *anyopaque, comptime callbType: anytype, comptime errCallback: *anyopaque, comptime errCallbackType: anytype) Task {
-        // fn init(comptime function: anytype, comptime ctx: *anyopaque, comptime callback: *anyopaque, comptime callbType: anytype, comptime errCallback: *anyopaque, comptime errCallbackType: anytype) Task {
+    fn init(comptime func: anytype, comptime ctx: *anyopaque, comptime callback: anytype, comptime errCallback: anytype) Task {
         return .{
-            .func = func,
-            .funcType = funcType,
+            .func = func.func,
+            .funcType = func.funcType,
             .ctx = ctx,
-            .callback = callback,
-            .callbackType = callbType,
-            .cbackError = errCallback,
-            .cbackErrorType = errCallbackType,
+            .callback = callback.func,
+            .callbackType = callback.funcType,
+            .cbackError = errCallback.func,
+            .cbackErrorType = errCallback.funcType,
         };
     }
 };
